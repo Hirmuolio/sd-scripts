@@ -313,7 +313,7 @@ class BucketManager:
             # while also keeping resolution as high as possible
 
             # Choose largest resolution that keeps at least 90% of the original image
-            treshold: float = 0.90
+            threshold: float = 0.90
 
             best_fraction: int = 0
             best_area: int = 0
@@ -329,12 +329,12 @@ class BucketManager:
                 b: int = res[0] * image_height
                 fraction: float = min( a,b ) / max( a,b ) # Percentage of original image kept after cropping. 1=100% kept
 
-                if best_fraction < treshold and best_fraction < fraction:
+                if best_fraction < threshold and best_fraction < fraction:
                     # it is possible for no resolution to keep 90%. Try to pick best match in that case.
                     best_fraction = fraction
                     best_area = res[0] * res[1]
                     best_res = res
-                elif fraction > treshold and res[0] * res[1] > best_area:
+                elif fraction > threshold and res[0] * res[1] > best_area:
                     best_fraction = fraction
                     best_area = res[0] * res[1]
                     best_res = res
