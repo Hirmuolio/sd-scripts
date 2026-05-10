@@ -309,7 +309,7 @@ class BucketManager:
             # logger.info(f"use predef, {image_width}, {image_height}, {reso}, {resized_size}")
         else:
             # Crop and scale down
-            # Find new resoltion that crops out as little of the original image as possible
+            # Find new resolution that crops out as little of the original image as possible
             # while also keeping resolution as high as possible
 
             # Choose largest resolution that keeps at least 90% of the original image
