@@ -4712,14 +4712,14 @@ def add_dataset_arguments(
         "--min_bucket_reso",
         type=int,
         default=256,
-        help="minimum resolution for buckets, must be divisible by bucket_reso_steps "
+        help="minimum side length for buckets, must be divisible by bucket_reso_steps "
         " / bucketの最小解像度、bucket_reso_stepsで割り切れる必要があります",
     )
     parser.add_argument(
         "--max_bucket_reso",
         type=int,
-        default=1024,
-        help="maximum resolution for buckets, must be divisible by bucket_reso_steps "
+        default=3072,
+        help="maximum side length for buckets, must be divisible by bucket_reso_steps "
         " / bucketの最大解像度、bucket_reso_stepsで割り切れる必要があります",
     )
     parser.add_argument(
