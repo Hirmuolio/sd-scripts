@@ -1385,7 +1385,7 @@ def expand_unet_to_inpainting(unet) -> None:
     unet.in_channels = 9
 
 
-def make_bucket_resolutions(max_reso: tuple[int, int], min_size: int = 256, max_size: int = 4096, divisible: int = 64, no_upscale: bool = False ) -> set:
+def make_bucket_resolutions(max_reso: tuple[int, int], min_size: int = 256, max_size: int = 1024, divisible: int = 64, no_upscale: bool = False ) -> list:
 
     assert min_size    % divisible == 0, "Resolutions must be divisible by step"
     assert max_size    % divisible == 0, "Resolutions must be divisible by step"
@@ -1403,7 +1403,6 @@ def make_bucket_resolutions(max_reso: tuple[int, int], min_size: int = 256, max_
         # Resolutions that are at most 20% smaller than max_reso are accepted
         size_diff = 0.8
 
-    # Get resolutions that are at most 20% smaller than max_reso
     for width in range( min_size, max_size, divisible ):
         for height in range( min_size, max_size, divisible ):
             if width * height > max_area:

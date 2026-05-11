@@ -315,7 +315,7 @@ class BucketManager:
             # Choose largest resolution that keeps at least 90% of the original image
             threshold: float = 0.90
 
-            best_fraction: int = 0
+            best_fraction: float = 0
             best_area: int = 0
             best_res: tuple[int, int]
 
