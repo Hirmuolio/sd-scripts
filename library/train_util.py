@@ -320,24 +320,24 @@ class BucketManager:
             best_area: int = 0
             best_res: tuple[int, int]
 
-            for res_x in range( self.reso_steps, max_dim, self.reso_steps ):
-                for res_y in range( self.reso_steps, max_dim, self.reso_steps ):
-                    if res_x * res_y > max_res:
+            for new_width in range( self.reso_steps, max_dim, self.reso_steps ):
+                for new_height in range( self.reso_steps, max_dim, self.reso_steps ):
+                    if new_width * new_height > max_res:
                         # No resizing into bigger
                         break
-                    a: int = image_width * res[1]
-                    b: int = res[0] * image_height
+                    a: int = image_width * new_height
+                    b: int = new_width * image_height
                     fraction: float = min( a,b ) / max( a,b ) # Percentage of original image kept after cropping. 1=100% kept
 
                     if best_fraction < threshold and best_fraction < fraction:
                         # Pick best matching aspect ratio if nothing else matters.
                         best_fraction = fraction
-                        best_area = res[0] * res[1]
-                        best_res = (res_x, res_y)
-                    elif fraction > threshold and res[0] * res[1] > best_area:
+                        best_area = new_width * new_height
+                        best_res = (new_width, new_height)
+                    elif fraction > threshold and new_width * new_height > best_area:
                         best_fraction = fraction
-                        best_area = res[0] * res[1]
-                        best_res = (res_x, res_y)
+                        best_area = new_width * new_height
+                        best_res = (new_width, new_height)
 
             reso = best_res
             cropped_width: int  = math.ceil( min( image_height * reso[0] / reso[1], image_width  ) )
