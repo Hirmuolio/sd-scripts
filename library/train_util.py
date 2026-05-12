@@ -1046,7 +1046,6 @@ class BaseDataset(torch.utils.data.Dataset):
                         "min_bucket_reso and max_bucket_reso are ignored if bucket_no_upscale is set, because bucket reso is defined by image size automatically / bucket_no_upscaleが指定された場合は、bucketの解像度は画像サイズから自動計算されるため、min_bucket_resoとmax_bucket_resoは無視されます"
                     )
 
-
             img_ar_errors = []
             for image_info in self.image_data.values():
                 image_width, image_height = image_info.image_size
