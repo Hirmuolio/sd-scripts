@@ -333,11 +333,11 @@ class BucketManager:
                         # Pick best matching aspect ratio if nothing else matters.
                         best_fraction = fraction
                         best_area = res[0] * res[1]
-                        best_res = res
+                        best_res = (res_x, res_y)
                     elif fraction > threshold and res[0] * res[1] > best_area:
                         best_fraction = fraction
                         best_area = res[0] * res[1]
-                        best_res = res
+                        best_res = (res_x, res_y)
 
             reso = best_res
             cropped_width: int  = math.ceil( min( image_height * reso[0] / reso[1], image_width  ) )
