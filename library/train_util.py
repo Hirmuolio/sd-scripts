@@ -285,19 +285,16 @@ class BucketManager:
 
     def select_bucket(self, image_width: int, image_height: int):
         aspect_ratio: float = image_width / image_height
-        reso : tuple[int, int] = (image_width, image_height)
-
-        if reso in self.predefined_resos_set:
-            # Image is already correct size
-            self.add_if_new_reso(reso)
-            return reso, reso, 0
-
         if not self.no_upscale:
             # 拡大および縮小を行う
             # 同じaspect ratioがあるかもしれないので（fine tuningで、no_upscale=Trueで前処理した場合）、解像度が同じものを優先する
-            ar_errors = self.predefined_aspect_ratios - aspect_ratio
-            predefined_bucket_id = np.abs(ar_errors).argmin()  # 当該解像度以外でaspect ratio errorが最も少ないもの
-            reso = self.predefined_resos[predefined_bucket_id]
+            reso = (image_width, image_height)
+            if reso in self.predefined_resos_set:
+                pass
+            else:
+                ar_errors = self.predefined_aspect_ratios - aspect_ratio
+                predefined_bucket_id = np.abs(ar_errors).argmin()  # 当該解像度以外でaspect ratio errorが最も少ないもの
+                reso = self.predefined_resos[predefined_bucket_id]
 
             ar_reso = reso[0] / reso[1]
             if aspect_ratio > ar_reso:  # 横が長い→縦を合わせる
@@ -317,7 +314,7 @@ class BucketManager:
 
             max_dim: int = max( image_width, image_height )
             max_dim = max_dim // self.reso_steps * self.reso_steps
-            max_res = image_width * image_height
+            max_res: int = image_width * image_height
 
             best_fraction: float = 0
             best_area: int = 0
