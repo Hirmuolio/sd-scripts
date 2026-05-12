@@ -322,8 +322,12 @@ class BucketManager:
 
             for new_width in range( self.reso_steps, max_dim, self.reso_steps ):
                 for new_height in range( self.reso_steps, max_dim, self.reso_steps ):
-                    if new_width * new_height > max_res:
+                    new_area: int = new_width * new_height
+                    if new_area > max_res:
                         # No resizing into bigger
+                        break
+                    elif new_area > self.max_area:
+                        # Larger than resolution limit
                         break
                     a: int = image_width * new_height
                     b: int = new_width * image_height
@@ -332,11 +336,11 @@ class BucketManager:
                     if best_fraction < threshold and best_fraction < fraction:
                         # Pick best matching aspect ratio if nothing else matters.
                         best_fraction = fraction
-                        best_area = new_width * new_height
+                        best_area = new_area
                         best_res = (new_width, new_height)
-                    elif fraction > threshold and new_width * new_height > best_area:
+                    elif fraction > threshold and new_area > best_area:
                         best_fraction = fraction
-                        best_area = new_width * new_height
+                        best_area = new_area
                         best_res = (new_width, new_height)
 
             reso = best_res
