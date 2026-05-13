@@ -312,7 +312,6 @@ class BucketManager:
             # Choose largest resolution that keeps at least 90% of the original image
             threshold: float = 0.90
 
-            max_dim: int = max_dim // self.reso_steps * self.reso_steps
             max_width: int = image_width // self.reso_steps * self.reso_steps
             max_height: int = image_height // self.reso_steps * self.reso_steps
 
