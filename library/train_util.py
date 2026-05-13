@@ -312,21 +312,18 @@ class BucketManager:
             # Choose largest resolution that keeps at least 90% of the original image
             threshold: float = 0.90
 
-            max_dim: int = max( image_width, image_height )
-            max_dim = max_dim // self.reso_steps * self.reso_steps
-            max_res: int = image_width * image_height
+            max_dim: int = max_dim // self.reso_steps * self.reso_steps
+            max_width: int = image_width // self.reso_steps * self.reso_steps
+            max_height: int = image_height // self.reso_steps * self.reso_steps
 
             best_fraction: float = 0
             best_area: int = 0
             best_res: tuple[int, int]
 
-            for new_width in range( self.reso_steps, max_dim, self.reso_steps ):
-                for new_height in range( self.reso_steps, max_dim, self.reso_steps ):
+            for new_width in range( self.reso_steps, max_width, self.reso_steps ):
+                for new_height in range( self.reso_steps, max_height, self.reso_steps ):
                     new_area: int = new_width * new_height
-                    if new_area > max_res:
-                        # No resizing into bigger
-                        break
-                    elif new_area > self.max_area:
+                    if new_area > self.max_area:
                         # Larger than resolution limit
                         break
                     a: int = image_width * new_height
@@ -349,6 +346,7 @@ class BucketManager:
             resized_size = ( cropped_width, cropped_height )
 
         self.add_if_new_reso(reso)
+
         ar_error = (reso[0] / reso[1]) - aspect_ratio
         return reso, resized_size, ar_error
 
