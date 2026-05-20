@@ -267,7 +267,7 @@ class BucketManager:
         self.reso_to_id = sorted_reso_to_id
 
     def make_buckets(self):
-        resos = model_util.make_bucket_resolutions(self.max_reso, self.min_size, self.max_size, self.reso_steps, self.no_upscale)
+        resos = model_util.make_bucket_resolutions(self.max_reso, self.min_size, self.max_size, self.reso_steps)
         self.set_predefined_resos(resos)
 
     def set_predefined_resos(self, resos):
@@ -290,19 +290,16 @@ class BucketManager:
 
     def select_bucket(self, image_width: int, image_height: int):
         aspect_ratio: float = image_width / image_height
-        reso : tuple[int, int] = (image_width, image_height)
-
-        if reso in self.predefined_resos_set:
-            # Image is already correct size
-            self.add_if_new_reso(reso)
-            return reso, reso, 0
-
         if not self.no_upscale:
             # 拡大および縮小を行う
             # 同じaspect ratioがあるかもしれないので（fine tuningで、no_upscale=Trueで前処理した場合）、解像度が同じものを優先する
-            ar_errors = self.predefined_aspect_ratios - aspect_ratio
-            predefined_bucket_id = np.abs(ar_errors).argmin()  # 当該解像度以外でaspect ratio errorが最も少ないもの
-            reso = self.predefined_resos[predefined_bucket_id]
+            reso = (image_width, image_height)
+            if reso in self.predefined_resos_set:
+                pass
+            else:
+                ar_errors = self.predefined_aspect_ratios - aspect_ratio
+                predefined_bucket_id = np.abs(ar_errors).argmin()  # 当該解像度以外でaspect ratio errorが最も少ないもの
+                reso = self.predefined_resos[predefined_bucket_id]
 
             ar_reso = reso[0] / reso[1]
             if aspect_ratio > ar_reso:  # 横が長い→縦を合わせる
@@ -320,29 +317,32 @@ class BucketManager:
             # Choose largest resolution that keeps at least 90% of the original image
             threshold: float = 0.90
 
-            best_fraction: int = 0
+            max_width: int = image_width // self.reso_steps * self.reso_steps
+            max_height: int = image_height // self.reso_steps * self.reso_steps
+
+            best_fraction: float = 0
             best_area: int = 0
             best_res: tuple[int, int]
 
+            for new_width in range( self.reso_steps, max_width, self.reso_steps ):
+                for new_height in range( self.reso_steps, max_height, self.reso_steps ):
+                    new_area: int = new_width * new_height
+                    if new_area > self.max_area:
+                        # Larger than resolution limit
+                        break
+                    a: int = image_width * new_height
+                    b: int = new_width * image_height
+                    fraction: float = min( a,b ) / max( a,b ) # Percentage of original image kept after cropping. 1=100% kept
 
-            for res in self.predefined_resos_set:
-                if res[0] > image_width or res[1] > image_height:
-                    # No resizing into bigger
-                    continue
-
-                a: int = image_width * res[1]
-                b: int = res[0] * image_height
-                fraction: float = min( a,b ) / max( a,b ) # Percentage of original image kept after cropping. 1=100% kept
-
-                if best_fraction < threshold and best_fraction < fraction:
-                    # it is possible for no resolution to keep 90%. Try to pick best match in that case.
-                    best_fraction = fraction
-                    best_area = res[0] * res[1]
-                    best_res = res
-                elif fraction > threshold and res[0] * res[1] > best_area:
-                    best_fraction = fraction
-                    best_area = res[0] * res[1]
-                    best_res = res
+                    if best_fraction < threshold and best_fraction < fraction:
+                        # Pick best matching aspect ratio if nothing else matters.
+                        best_fraction = fraction
+                        best_area = new_area
+                        best_res = (new_width, new_height)
+                    elif fraction > threshold and new_area > best_area:
+                        best_fraction = fraction
+                        best_area = new_area
+                        best_res = (new_width, new_height)
 
             reso = best_res
             cropped_width: int  = math.ceil( min( image_height * reso[0] / reso[1], image_width  ) )
@@ -350,8 +350,8 @@ class BucketManager:
             resized_size = ( cropped_width, cropped_height )
 
         self.add_if_new_reso(reso)
-        ar_error = (reso[0] / reso[1]) - aspect_ratio
 
+        ar_error = (reso[0] / reso[1]) - aspect_ratio
         return reso, resized_size, ar_error
 
     @staticmethod
@@ -1042,8 +1042,12 @@ class BaseDataset(torch.utils.data.Dataset):
                     self.max_bucket_reso,
                     self.bucket_reso_steps,
                 )
-                self.bucket_manager.make_buckets()
-
+                if not self.bucket_no_upscale:
+                    self.bucket_manager.make_buckets()
+                else:
+                    logger.warning(
+                        "min_bucket_reso and max_bucket_reso are ignored if bucket_no_upscale is set, because bucket reso is defined by image size automatically / bucket_no_upscaleが指定された場合は、bucketの解像度は画像サイズから自動計算されるため、min_bucket_resoとmax_bucket_resoは無視されます"
+                    )
 
             img_ar_errors = []
             for image_info in self.image_data.values():
@@ -4743,14 +4747,14 @@ def add_dataset_arguments(
         "--min_bucket_reso",
         type=int,
         default=256,
-        help="minimum side length for buckets, must be divisible by bucket_reso_steps "
+        help="minimum resolution for buckets, must be divisible by bucket_reso_steps "
         " / bucketの最小解像度、bucket_reso_stepsで割り切れる必要があります",
     )
     parser.add_argument(
         "--max_bucket_reso",
         type=int,
-        default=3072,
-        help="maximum side length for buckets, must be divisible by bucket_reso_steps "
+        default=1024,
+        help="maximum resolution for buckets, must be divisible by bucket_reso_steps "
         " / bucketの最大解像度、bucket_reso_stepsで割り切れる必要があります",
     )
     parser.add_argument(

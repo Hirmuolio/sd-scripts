@@ -99,7 +99,12 @@ def main(args):
     bucket_manager = train_util.BucketManager(
         args.bucket_no_upscale, max_reso, args.min_bucket_reso, args.max_bucket_reso, args.bucket_reso_steps
     )
-    bucket_manager.make_buckets()
+    if not args.bucket_no_upscale:
+        bucket_manager.make_buckets()
+    else:
+        logger.warning(
+            "min_bucket_reso and max_bucket_reso are ignored if bucket_no_upscale is set, because bucket reso is defined by image size automatically / bucket_no_upscaleが指定された場合は、bucketの解像度は画像サイズから自動計算されるため、min_bucket_resoとmax_bucket_resoは無視されます"
+        )
 
     # 画像をひとつずつ適切なbucketに割り当てながらlatentを計算する
     img_ar_errors = []
@@ -224,8 +229,8 @@ def setup_parser() -> argparse.ArgumentParser:
         default="512,512",
         help="max resolution in fine tuning (width,height) / fine tuning時の最大画像サイズ 「幅,高さ」（使用メモリ量に関係します）",
     )
-    parser.add_argument("--min_bucket_reso", type=int, default=256, help="minimum side length for buckets / bucketの最小解像度")
-    parser.add_argument("--max_bucket_reso", type=int, default=3072, help="maximum side length for buckets / bucketの最大解像度")
+    parser.add_argument("--min_bucket_reso", type=int, default=256, help="minimum resolution for buckets / bucketの最小解像度")
+    parser.add_argument("--max_bucket_reso", type=int, default=1024, help="maximum resolution for buckets / bucketの最大解像度")
     parser.add_argument(
         "--bucket_reso_steps",
         type=int,

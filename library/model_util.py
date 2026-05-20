@@ -1385,32 +1385,31 @@ def expand_unet_to_inpainting(unet) -> None:
     unet.in_channels = 9
 
 
-def make_bucket_resolutions(max_reso: tuple[int, int], min_size: int = 256, max_size: int = 4096, divisible: int = 64, no_upscale: bool = False ) -> set:
-
-    assert min_size    % divisible == 0, "Resolutions must be divisible by step"
-    assert max_size    % divisible == 0, "Resolutions must be divisible by step"
-    assert max_reso[0] % divisible == 0, "Resolutions must be divisible by step"
-    assert max_reso[1] % divisible == 0, "Resolutions must be divisible by step"
-
+def make_bucket_resolutions(max_reso, min_size=256, max_size=1024, divisible=64):
     max_width, max_height = max_reso
     max_area = max_width * max_height
+
     resos = set()
 
-    if no_upscale:
-        # All resolutions smaller or equal to max_reso are accepted
-        size_diff = 0.0
-    else:
-        # Resolutions that are at most 20% smaller than max_reso are accepted
-        size_diff = 0.8
+    width = int(math.sqrt(max_area) // divisible) * divisible
+    resos.add((width, width))
 
-    # Get resolutions that are at most 20% smaller than max_reso
-    for width in range( min_size, max_size, divisible ):
-        for height in range( min_size, max_size, divisible ):
-            if width * height > max_area:
-                break
-            if width*height / max_area > size_diff:
-                resos.add((width, height))
-                resos.add((height, width))
+    width = min_size
+    while width <= max_size:
+        height = min(max_size, int((max_area // width) // divisible) * divisible)
+        if height >= min_size:
+            resos.add((width, height))
+            resos.add((height, width))
+
+        # # make additional resos
+        # if width >= height and width - divisible >= min_size:
+        #   resos.add((width - divisible, height))
+        #   resos.add((height, width - divisible))
+        # if height >= width and height - divisible >= min_size:
+        #   resos.add((width, height - divisible))
+        #   resos.add((height - divisible, width))
+
+        width += divisible
 
     resos = list(resos)
     resos.sort()
