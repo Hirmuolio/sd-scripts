@@ -2505,7 +2505,7 @@ def load_image(image_path, alpha=False):
                     try:
                         src_profile = ImageCms.ImageCmsProfile( BytesIO(icc) )
                         srgb_profile = ImageCms.createProfile("sRGB")
-                        ImageCms.profileToProfile(image, src_profile, srgb_profile, inPlace=True)
+                        image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
                         image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
                     except Exception as e:
                         logger.warning( f"Could not convert {image_path} to sRGB: {src_profile.profile.model} {src_profile.profile.profile_description}\n{e}" )
