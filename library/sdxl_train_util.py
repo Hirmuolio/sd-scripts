@@ -12,7 +12,6 @@ from accelerate import init_empty_weights
 from tqdm import tqdm
 from transformers import CLIPTokenizer
 from library import model_util, sdxl_model_util, train_util, sdxl_original_unet
-from library.sdxl_lpw_stable_diffusion import SdxlStableDiffusionLongPromptWeightingPipeline
 from .utils import setup_logging
 
 setup_logging()
@@ -49,6 +48,15 @@ def load_target_model(args, accelerator, model_version: str, weight_dtype):
                 model_dtype,
                 args.disable_mmap_load_safetensors,
             )
+
+            # Expand 4-channel conv_in to 9 channels when training inpainting from a
+            # standard (non-inpainting) checkpoint.
+            if getattr(args, "train_inpainting", False) and getattr(unet, "in_channels", 4) == 4:
+                logger.info(
+                    "train_inpainting: expanding UNet conv_in from 4 to 9 channels "
+                    "(standard checkpoint → inpainting training from scratch)"
+                )
+                model_util.expand_unet_to_inpainting(unet)
 
             # work on low-ram device
             if args.lowram:
@@ -118,8 +126,9 @@ def _load_target_model(
 
         # Diffusers U-Net to original U-Net
         state_dict = sdxl_model_util.convert_diffusers_unet_state_dict_to_sdxl(unet.state_dict())
+        actual_in_channels = state_dict["input_blocks.0.0.weight"].shape[1]
         with init_empty_weights():
-            unet = sdxl_original_unet.SdxlUNet2DConditionModel()  # overwrite unet
+            unet = sdxl_original_unet.SdxlUNet2DConditionModel(in_channels=actual_in_channels)  # overwrite unet
         sdxl_model_util._load_state_dict_on_device(unet, state_dict, device=device, dtype=model_dtype)
         logger.info("U-Net converted to original U-Net")
 
@@ -327,15 +336,18 @@ def save_sd_model_on_epoch_end_or_stepwise(
     )
 
 
-def add_sdxl_training_arguments(parser: argparse.ArgumentParser):
-    parser.add_argument(
-        "--cache_text_encoder_outputs", action="store_true", help="cache text encoder outputs / text encoderの出力をキャッシュする"
-    )
-    parser.add_argument(
-        "--cache_text_encoder_outputs_to_disk",
-        action="store_true",
-        help="cache text encoder outputs to disk / text encoderの出力をディスクにキャッシュする",
-    )
+def add_sdxl_training_arguments(parser: argparse.ArgumentParser, support_text_encoder_caching: bool = True):
+    if support_text_encoder_caching:
+        parser.add_argument(
+            "--cache_text_encoder_outputs",
+            action="store_true",
+            help="cache text encoder outputs / text encoderの出力をキャッシュする",
+        )
+        parser.add_argument(
+            "--cache_text_encoder_outputs_to_disk",
+            action="store_true",
+            help="cache text encoder outputs to disk / text encoderの出力をディスクにキャッシュする",
+        )
     parser.add_argument(
         "--disable_mmap_load_safetensors",
         action="store_true",
@@ -343,7 +355,7 @@ def add_sdxl_training_arguments(parser: argparse.ArgumentParser):
     )
 
 
-def verify_sdxl_training_args(args: argparse.Namespace, supportTextEncoderCaching: bool = True):
+def verify_sdxl_training_args(args: argparse.Namespace, support_text_encoder_caching: bool = True):
     assert not args.v2, "v2 cannot be enabled in SDXL training / SDXL学習ではv2を有効にすることはできません"
 
     if args.clip_skip is not None:
@@ -362,11 +374,11 @@ def verify_sdxl_training_args(args: argparse.Namespace, supportTextEncoderCachin
     #         )
     #     logger.info(f"noise_offset is set to {args.noise_offset} / noise_offsetが{args.noise_offset}に設定されました")
 
-    assert (
-        not hasattr(args, "weighted_captions") or not args.weighted_captions
-    ), "weighted_captions cannot be enabled in SDXL training currently / SDXL学習では今のところweighted_captionsを有効にすることはできません"
+    # assert (
+    #     not hasattr(args, "weighted_captions") or not args.weighted_captions
+    # ), "weighted_captions cannot be enabled in SDXL training currently / SDXL学習では今のところweighted_captionsを有効にすることはできません"
 
-    if supportTextEncoderCaching:
+    if support_text_encoder_caching:
         if args.cache_text_encoder_outputs_to_disk and not args.cache_text_encoder_outputs:
             args.cache_text_encoder_outputs = True
             logger.warning(
@@ -376,4 +388,6 @@ def verify_sdxl_training_args(args: argparse.Namespace, supportTextEncoderCachin
 
 
 def sample_images(*args, **kwargs):
+    from library.sdxl_lpw_stable_diffusion import SdxlStableDiffusionLongPromptWeightingPipeline
+
     return train_util.sample_images_common(SdxlStableDiffusionLongPromptWeightingPipeline, *args, **kwargs)
