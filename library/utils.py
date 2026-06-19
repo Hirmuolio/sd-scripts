@@ -193,8 +193,6 @@ def load_image(image_path, alpha : bool =False):
                             image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGB")
 
                         image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
-                    except Exception as e:
-                        logger.warning( f"Could not convert {image_path} to sRGB. Using image as is. {e}" )
 
             if alpha:
                 if not image.mode == "RGBA":
