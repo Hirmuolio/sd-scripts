@@ -4,6 +4,7 @@ import sys
 import threading
 from typing import *
 import sys
+import io
 
 import torch
 from torchvision import transforms
@@ -183,12 +184,12 @@ def load_image(image_path, alpha : bool =False):
                 icc = image.info.get('icc_profile', '')
                 if icc:
                     try:
-                        src_profile = ImageCms.ImageCmsProfile( BytesIO(icc) )
+                        src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
                         srgb_profile = ImageCms.createProfile("sRGB")
                         image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
                         image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
                     except Exception as e:
-                        logger.warning( f"Could not convert {image_path} to sRGB. Using it as is." )
+                        logger.warning( f"Could not convert {image_path} to sRGB. Using it as is. {e}" )
 
             if alpha:
                 if not image.mode == "RGBA":
