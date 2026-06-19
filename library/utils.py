@@ -187,12 +187,18 @@ def load_image(image_path, alpha : bool =False):
                         src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
                         srgb_profile = ImageCms.createProfile( "sRGB" )
 
+                        if image.mode in "P":
+                            # Indexed mode does not play well with profile conversion to rgb
+                            image = image.convert("RGBA")
+
                         if "A" in image.getbands():
                             image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
                         else:
                             image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGB")
 
                         image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
+                    except Exception as e:
+                        logger.warning( f"Could not convert {image_path} to sRGB. Using image as is. {e}" )
 
             if alpha:
                 if not image.mode == "RGBA":
