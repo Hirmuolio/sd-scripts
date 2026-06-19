@@ -181,30 +181,32 @@ def load_image(image_path, alpha : bool =False):
 
             # Convert image to sRGB
             if "PIL.ImageCms" in sys.modules:
-                icc = image.info.get('icc_profile', '')
+                icc = image.info.get('icc_profile', None)
                 if icc:
                     try:
                         src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
-                        srgb_profile = ImageCms.createProfile("sRGB")
-                        image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
+                        srgb_profile = ImageCms.createProfile( "sRGB" )
+
+                        if "A" in image.getbands():
+                            image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
+                        else:
+                            image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGB")
+
                         image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
                     except Exception as e:
-                        logger.warning( f"Could not convert {image_path} to sRGB. Using it as is. {e}" )
+                        logger.warning( f"Could not convert {image_path} to sRGB. Using image as is. {e}" )
 
             if alpha:
                 if not image.mode == "RGBA":
                     image = image.convert("RGBA")
             else:
-                if image.mode == "P":
-                    # Palette images with alpha are easier to handle as RGBA.
-                    image = image.convert('RGBA')
+                if image.mode != "RGBA" or image.mode != "RGB":
+                    # Various pallette formats and others
+                    image = image.convert("RGBA")
 
                 if "A" in  image.getbands():
-                    # Replace transparency with white background.
-                    alpha_layer = image.convert('RGBA').split()[-1]
-                    bg = Image.new("RGBA", image.size, (255, 255, 255, 255) )
-                    bg.paste( image, mask=alpha_layer )
-                    image = bg.convert('RGB')
+                    bg = Image.new("RGBA", image.size, (255, 255, 255, 255))
+                    image = Image.alpha_composite( bg, image ).convert("RGB")
 
                 if not image.mode == "RGB":
                     image = image.convert("RGB")
