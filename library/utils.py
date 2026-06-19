@@ -187,7 +187,7 @@ def load_image(image_path, alpha : bool =False):
                         src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
                         srgb_profile = ImageCms.createProfile( "sRGB" )
 
-                        if image.mode in "P":
+                        if image.mode == "P":
                             # Indexed mode does not play well with profile conversion to rgb
                             image = image.convert("RGBA")
 
