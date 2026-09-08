@@ -173,49 +173,76 @@ IMAGE_TRANSFORMS = transforms.Compose(
 )
 
 
-def load_image(image_path, alpha : bool =False):
+def load_image(image_path, keep_alpha : bool = False):
     try:
         with Image.open(image_path) as image:
-            if getattr(image, "is_animated", False):
-                logger.warning( f"{image_path} is animated" )
-
-            # Convert image to sRGB
-            if "PIL.ImageCms" in sys.modules:
-                icc = image.info.get('icc_profile', None)
-                if icc:
-                    try:
-                        src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
-                        srgb_profile = ImageCms.createProfile( "sRGB" )
-
-                        if image.mode == "P":
-                            # Indexed mode does not play well with profile conversion to rgb
-                            image = image.convert("RGBA")
-
-                        if "A" in image.getbands():
-                            image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGBA")
-                        else:
-                            image = ImageCms.profileToProfile(image, src_profile, srgb_profile, outputMode="RGB")
-
-                        image.info["icc_profile"] = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
-                    except Exception as e:
-                        logger.warning( f"Could not convert {image_path} to sRGB. Using image as is. {e}" )
-
-            if alpha:
-                if not image.mode == "RGBA":
-                    image = image.convert("RGBA")
+            if "A" in image.getbands():
+                transparency = image.getchannel("A")
+            elif "transparency" in image.info:
+                rgba = image.convert("RGBA")
+                transparency = rgba.getchannel("A")
             else:
-                if image.mode != "RGBA" or image.mode != "RGB":
-                    # Various pallette formats and others
-                    image = image.convert("RGBA")
+                transparency = None
 
-                if "A" in  image.getbands():
-                    bg = Image.new("RGBA", image.size, (255, 255, 255, 255))
-                    image = Image.alpha_composite( bg, image ).convert("RGB")
+            icc = image.info.get("icc_profile", None)
+            if icc and "PIL.ImageCms" in sys.modules:
 
-                if not image.mode == "RGB":
-                    image = image.convert("RGB")
+                try:
+                    src_profile = ImageCms.ImageCmsProfile( io.BytesIO(icc) )
+                    srgb_profile = ImageCms.createProfile( "sRGB" )
+
+                    if image.mode in ["RGB", "CMYK"]:
+                        rgb = ImageCms.profileToProfile(
+                            image,
+                            src_profile,
+                            srgb_profile,
+                            outputMode="RGB",
+                        )
+                    elif image.mode in ("L", "LA"):
+                        luma = image.getchannel("L")
+                        rgb = ImageCms.profileToProfile(
+                            luma,
+                            src_profile,
+                            srgb_profile,
+                            outputMode="RGB",
+                        )
+                    else:
+                        source = image.convert("RGB")
+                        rgb = ImageCms.profileToProfile(
+                            source,
+                            src_profile,
+                            srgb_profile,
+                            outputMode="RGB",
+                        )
+                except Exception as e:
+                    logger.warning( f"Could not convert {image_path} to sRGB. Using image as is. {e}" )
+                    rgb = image.convert("RGB")
+            else:
+                rgb = image.convert("RGB")
+
+            if keep_alpha:
+                if transparency:
+                    # Place transparency back in image
+                    image = Image.merge( "RGBA",  (*rgb.split(), transparency), )
+
+                else:
+                    image = rgb.convert("RGBA")
+
+            else:
+                if transparency:
+                    # Replace alpha with white background
+                    image = Image.new(
+                        "RGB",
+                        rgb.size,
+                        (255, 255, 255),
+                        )
+                    image.paste(rgb, mask=transparency)
+
+                else:
+                    image = rgb
             img = np.array(image, np.uint8)
             return img
+
     except (IOError, OSError) as e:
         logger.error(f"Error loading file: {image_path}")
         raise e
